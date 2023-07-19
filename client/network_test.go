@@ -92,3 +92,68 @@ func TestGetNetwork(t *testing.T) {
 		t.Errorf("expected network pool id to not be an empty string")
 	}
 }
+
+func TestCreateNetwork_DeleteNetwork(t *testing.T) {
+	c, err := NewClient(GetConfigFromEnv())
+
+	if err != nil {
+		t.Fatalf("failed to create client with error: %v", err)
+	}
+
+	var vlan = 100
+	var netReq Network = Network{
+		NameLabel:   integrationTestPrefix + "created-network",
+		PifIds:      []string{accTestPif.Id},
+		Description: "Network created by integration tests",
+		Mtu:         1500,
+		PoolId:      accTestPool.Id,
+	}
+
+	resultNet, err := c.CreateNetwork(netReq, vlan)
+
+	if err != nil {
+		t.Fatalf("failed to create network with error: %v", err)
+	}
+
+	if resultNet.Id == "" {
+		t.Errorf("expected network Id to not be empty")
+	}
+
+	if resultNet.NameLabel != netReq.NameLabel {
+		t.Errorf("expected network name_label `%s` to match `%s`", resultNet.NameLabel, netReq.NameLabel)
+	}
+
+	if len(resultNet.PifIds) == 0 {
+		t.Errorf("expected network pifs to not be empty")
+	}
+
+	if resultNet.Description != netReq.Description {
+		t.Errorf("expected network description `%s` to match `%s`", resultNet.Description, netReq.Description)
+	}
+
+	if resultNet.Mtu != netReq.Mtu {
+		t.Errorf("expected network mtu `%d` to match `%d`", resultNet.Mtu, netReq.Mtu)
+	}
+
+	if resultNet.PoolId != netReq.PoolId {
+		t.Errorf("expected network poolId `%s` to match `%s`", resultNet.PoolId, netReq.PoolId)
+	}
+
+	//Creating a Network while specifying a PIF ID and a VLAN creates clone of the given PIF with the given VLAN
+	var pifs []PIF
+	pifs, err = c.GetPIF(PIF{Host: accTestHost.Id, Device: "eth0", Vlan: 100, Id: resultNet.PifIds[0]})
+
+	if err != nil {
+		t.Fatalf("failed to get pif of with id %s with error: %v", resultNet.PifIds[0], err)
+	}
+
+	if len(pifs) == 0 || pifs[0].Vlan != vlan {
+		t.Errorf("expected network VLAN `%d` to match `%d`", pifs[0].Vlan, vlan)
+	}
+
+	err = c.DeleteNetwork(resultNet.Id)
+
+	if err != nil {
+		t.Errorf("failed to delete the network with error: %v", err)
+	}
+}

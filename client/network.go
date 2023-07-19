@@ -9,10 +9,13 @@ import (
 )
 
 type Network struct {
-	Id        string `json:"id"`
-	NameLabel string `json:"name_label"`
-	Bridge    string `json:"bridge"`
-	PoolId    string `json:"$poolId"`
+	Id          string   `json:"id"`
+	NameLabel   string   `json:"name_label"`
+	Description string   `json:"name_description,omitempty"`
+	PifIds      []string `json:"PIFs,omitempty"`
+	Mtu         int      `json:"mtu,omitempty"`
+	Bridge      string   `json:"bridge"`
+	PoolId      string   `json:"$poolId"`
 }
 
 func (net Network) Compare(obj interface{}) bool {
@@ -35,11 +38,32 @@ func (net Network) Compare(obj interface{}) bool {
 	return false
 }
 
-func (c *Client) CreateNetwork(netReq Network) (*Network, error) {
+func (c *Client) CreateNetwork(netReq Network, vlan int) (*Network, error) {
 	var id string
 	params := map[string]interface{}{
 		"pool": netReq.PoolId,
 		"name": netReq.NameLabel,
+	}
+
+	if netReq.Description != "" {
+		params["description"] = netReq.Description
+	}
+
+	if len(netReq.PifIds) > 0 {
+		//For now, only one PIF is supported, but the struct still requires an array
+		params["pif"] = netReq.PifIds[0]
+	}
+
+	if netReq.Description != "" {
+		params["description"] = netReq.Description
+	}
+
+	if vlan != 0 {
+		params["vlan"] = vlan
+	}
+
+	if netReq.Mtu != 0 {
+		params["mtu"] = netReq.Mtu
 	}
 
 	err := c.Call("network.create", params, &id)
